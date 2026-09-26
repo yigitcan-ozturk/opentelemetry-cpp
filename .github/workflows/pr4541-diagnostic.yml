@@ -1,0 +1,48 @@
+name: PR 4541 isolated TLS diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeats:
+        description: "Number of isolated process runs"
+        required: true
+        default: "30"
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-tls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CC: /usr/bin/gcc-14
+      CXX: /usr/bin/g++-14
+      CXX_STANDARD: '17'
+      BUILD_TYPE: Debug
+    steps:
+      - name: Checkout isolated diagnostic branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: diagnostic/4541-isolated-tls-race
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup
+        run: sudo -E ./ci/setup_ci_environment.sh
+      - name: Install dependencies
+        run: sudo -E ./ci/install_thirdparty.sh --install-dir /usr/local --tags-file third_party_release
+      - name: Build GCC 14 async Debug
+        run: ./ci/do_ci.sh cmake.maintainer.async.test
+      - name: Generate test certificates
+        run: (cd ./functional/cert && ./generate_cert.sh)
+      - name: Reproduce isolated secure TLS case
+        env:
+          REPEAT: ${{ inputs.repeats }}
+        run: (cd ./functional/otlp && bash ./run_diagnostic_4541.sh)
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pr-4541-tls-diagnostic
+          path: functional/otlp/diagnostic-4541/
+          if-no-files-found: warn
