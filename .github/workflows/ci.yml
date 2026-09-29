@@ -224,6 +224,11 @@ jobs:
       run: |
         (cd ./functional/cert; ./generate_cert.sh)
     - name: run isolated cert-unreadable diagnostic
+      env:
+        BUILD_DIR: ${{ github.workspace }}/build
+        SERVER_MODE: https
+        TEST_EXECUTABLE: func_otlp_grpc
+        TEST_URL: 127.0.0.1:4317
       run: |
         (cd ./functional/otlp; ./run_test_mode.sh)
 
