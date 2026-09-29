@@ -223,9 +223,9 @@ jobs:
     - name: generate test cert
       run: |
         (cd ./functional/cert; ./generate_cert.sh)
-    - name: run func test
+    - name: run isolated cert-unreadable diagnostic
       run: |
-        (cd ./functional/otlp; ./run_test.sh)
+        (cd ./functional/otlp; ./run_test_mode.sh)
 
   cmake_gcc_maintainer_abiv2_test:
     name: CMake gcc 14 (maintainer mode, abiv2)
