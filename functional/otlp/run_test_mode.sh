@@ -37,13 +37,13 @@ for I in $(seq 1 ${DIAG_REPETITIONS})
 do
   echo "====================================================================="
   echo "DIAG iteration ${I}/${DIAG_REPETITIONS}: ${TEST_NAME}-${TEST_RUN}-${SERVER_MODE}"
-  "${TEST_BIN_DIR}/${TEST_EXECUTABLE}" --debug --mode "${SERVER_MODE}" --cert-dir "${CERT_DIR}" --endpoint "${TEST_ENDPOINT}" "${TEST_NAME}"
-  RC=$?
-  if [ ${RC} -eq 0 ]; then
+  if "${TEST_BIN_DIR}/${TEST_EXECUTABLE}" --debug --mode "${SERVER_MODE}" --cert-dir "${CERT_DIR}" --endpoint "${TEST_ENDPOINT}" "${TEST_NAME}"; then
+    RC=0
     echo "DIAG ${I}: PASSED" | tee -a report.log
   else
+    RC=$?
     echo "DIAG ${I}: FAILED rc=${RC}" | tee -a report.log
-    exit ${RC}
+    exit "${RC}"
   fi
 done
 
