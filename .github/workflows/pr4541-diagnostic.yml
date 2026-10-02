@@ -35,6 +35,11 @@ jobs:
         run: ./ci/do_ci.sh cmake.maintainer.async.test
       - name: Generate test certificates
         run: (cd ./functional/cert && ./generate_cert.sh)
+      - name: Run full OTLP gRPC sequence with event-order tracing
+        run: |
+          cd ./functional/otlp
+          rm -f sequence-4541.log report.log
+          TEST_EXECUTABLE=func_otlp_grpc TEST_URL=localhost:4317 SERVER_MODE=https bash ./run_test_mode.sh
       - name: Reproduce isolated secure TLS case
         env:
           REPEAT: ${{ inputs.repeats }}
@@ -44,5 +49,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pr-4541-tls-diagnostic
-          path: functional/otlp/diagnostic-4541/
+          path: |
+            functional/otlp/diagnostic-4541/
+            functional/otlp/sequence-4541.log
+            functional/otlp/report.log
           if-no-files-found: warn
