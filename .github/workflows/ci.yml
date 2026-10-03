@@ -230,11 +230,44 @@ jobs:
         set -o pipefail
         echo "=== OTLP full-sequence diagnostic start: $(date -Ins) ==="
         (cd ./functional/otlp; bash -x ./run_test.sh) 2>&1 | tee /tmp/otlp-sequence.log
+    - name: run deterministic gRPC atexit thread probe
+      run: |
+        set -euxo pipefail
+        mkdir -p ./functional/otlp/certs
+        openssl req -x509 -newkey rsa:2048 -nodes \
+          -keyout ./functional/otlp/certs/key.pem \
+          -out ./functional/otlp/certs/cert.pem \
+          -days 1 -subj /CN=localhost
+        (
+          cd ./functional/otlp
+          python3 ./atexit_tls_listener.py 14317 >/tmp/atexit-listener.log 2>&1 &
+          listener_pid=$!
+          trap 'kill "$listener_pid" || true' EXIT
+          for i in {1..50}; do
+            if grep -q "listening on 127.0.0.1:14317" /tmp/atexit-listener.log; then break; fi
+            sleep 0.1
+          done
+          cat /tmp/atexit-listener.log
+          ${CXX} -std=c++14 atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
+          ./atexit_probe 0 2>&1 | tee /tmp/atexit-probe-return.log
+          ./atexit_probe 1 2>&1 | tee /tmp/atexit-probe-exit.log
+          grep -q "END OF MAIN" /tmp/atexit-probe-return.log
+          grep -q "ATEXIT (no earlier than OPENSSL_cleanup)" /tmp/atexit-probe-return.log
+          grep -q "END OF MAIN" /tmp/atexit-probe-exit.log
+          if grep -q "ATEXIT (no earlier than OPENSSL_cleanup)" /tmp/atexit-probe-exit.log; then
+            echo "_Exit control unexpectedly ran atexit handler" >&2
+            exit 1
+          fi
+        )
     - name: show sequence tail on failure
       if: failure()
       run: |
         echo "=== Last 400 lines before failure ==="
         tail -n 400 /tmp/otlp-sequence.log || true
+        echo "=== Probe return-mode output ==="
+        cat /tmp/atexit-probe-return.log || true
+        echo "=== Probe _Exit control output ==="
+        cat /tmp/atexit-probe-exit.log || true
 
   cmake_gcc_maintainer_abiv2_test:
     name: CMake gcc 14 (maintainer mode, abiv2)
