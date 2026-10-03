@@ -223,14 +223,18 @@ jobs:
     - name: generate test cert
       run: |
         (cd ./functional/cert; ./generate_cert.sh)
-    - name: run isolated cert-unreadable diagnostic
+    - name: run full OTLP sequence diagnostic
       env:
-        BUILD_DIR: ${{ github.workspace }}/build
-        SERVER_MODE: https
-        TEST_EXECUTABLE: func_otlp_grpc
-        TEST_URL: 127.0.0.1:4317
+        GRPC_VERBOSITY: DEBUG
       run: |
-        (cd ./functional/otlp; ./run_test_mode.sh)
+        set -o pipefail
+        echo "=== OTLP full-sequence diagnostic start: $(date -Ins) ==="
+        (cd ./functional/otlp; bash -x ./run_test.sh) 2>&1 | tee /tmp/otlp-sequence.log
+    - name: show sequence tail on failure
+      if: failure()
+      run: |
+        echo "=== Last 400 lines before failure ==="
+        tail -n 400 /tmp/otlp-sequence.log || true
 
   cmake_gcc_maintainer_abiv2_test:
     name: CMake gcc 14 (maintainer mode, abiv2)
