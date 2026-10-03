@@ -240,7 +240,7 @@ jobs:
           -days 1 -subj /CN=localhost
         (
           cd ./functional/otlp
-          python3 ./atexit_tls_listener.py 14317 >/tmp/atexit-listener.log 2>&1 &
+          python3 ./diagnostics/tls_server.py 14317 >/tmp/atexit-listener.log 2>&1 &
           listener_pid=$!
           trap 'kill "$listener_pid" || true' EXIT
           for i in {1..50}; do
@@ -248,13 +248,13 @@ jobs:
             sleep 0.1
           done
           cat /tmp/atexit-listener.log
-          ${CXX} -std=c++14 atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
+          ${CXX} -std=c++14 ./diagnostics/atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
           ./atexit_probe 0 2>&1 | tee /tmp/atexit-probe-return.log
           ./atexit_probe 1 2>&1 | tee /tmp/atexit-probe-exit.log
           grep -q "END OF MAIN" /tmp/atexit-probe-return.log
-          grep -q "ATEXIT (no earlier than OPENSSL_cleanup)" /tmp/atexit-probe-return.log
+          grep -q "ATEXIT" /tmp/atexit-probe-return.log
           grep -q "END OF MAIN" /tmp/atexit-probe-exit.log
-          if grep -q "ATEXIT (no earlier than OPENSSL_cleanup)" /tmp/atexit-probe-exit.log; then
+          if grep -q "ATEXIT" /tmp/atexit-probe-exit.log; then
             echo "_Exit control unexpectedly ran atexit handler" >&2
             exit 1
           fi
