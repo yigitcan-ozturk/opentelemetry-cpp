@@ -254,7 +254,7 @@ jobs:
             sleep 0.1
           done
           cat /tmp/atexit-listener.log
-          ${CXX} -std=c++14 ./diagnostics/atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
+          ${CXX} -std=c++17 ./diagnostics/atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
           ./atexit_probe 0 2>&1 | tee /tmp/atexit-probe-return.log
           ./atexit_probe 1 2>&1 | tee /tmp/atexit-probe-exit.log
           grep -q "END OF MAIN" /tmp/atexit-probe-return.log
