@@ -230,6 +230,12 @@ jobs:
         set -o pipefail
         echo "=== OTLP full-sequence diagnostic start: $(date -Ins) ==="
         (cd ./functional/otlp; bash -x ./run_test.sh) 2>&1 | tee /tmp/otlp-sequence.log
+    - name: verify diagnostic gRPC version
+      run: |
+        set -euxo pipefail
+        pkg-config --modversion grpc++
+        pkg-config --modversion grpc
+        grep -q "^1.83.1$" <(pkg-config --modversion grpc++)
     - name: run deterministic gRPC atexit thread probe
       run: |
         set -euxo pipefail
