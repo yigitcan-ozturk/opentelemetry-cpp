@@ -1,3 +1,6 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Diagnostic-only probe adapted from thc1006's #4541 comment.
 // Measures whether gRPC/EventEngine threads remain live at an atexit point
 // registered before gRPC first touches OpenSSL.
