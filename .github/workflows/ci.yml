@@ -254,7 +254,18 @@ jobs:
             sleep 0.1
           done
           cat /tmp/atexit-listener.log
-          ${CXX} -std=c++17 ./diagnostics/atexit_probe.cc -o atexit_probe $(pkg-config --cflags --libs grpc++)
+          cat > diagnostics/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.16)
+          project(grpc_atexit_probe LANGUAGES CXX)
+          set(CMAKE_CXX_STANDARD 17)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          find_package(gRPC CONFIG REQUIRED)
+          add_executable(atexit_probe atexit_probe.cc)
+          target_link_libraries(atexit_probe PRIVATE gRPC::grpc++)
+          EOF
+          cmake -S diagnostics -B /tmp/atexit-probe-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/atexit-probe-build --parallel
+          cp /tmp/atexit-probe-build/atexit_probe ./atexit_probe
           ./atexit_probe 0 2>&1 | tee /tmp/atexit-probe-return.log
           ./atexit_probe 1 2>&1 | tee /tmp/atexit-probe-exit.log
           grep -q "END OF MAIN" /tmp/atexit-probe-return.log
