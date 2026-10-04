@@ -1,3 +1,6 @@
+// Copyright The OpenTelemetry Authors
+// SPDX-License-Identifier: Apache-2.0
+
 // Diagnostic probe for #4541: report gRPC thread population at end of main
 // and from an atexit handler registered before gRPC first touches OpenSSL.
 #include <grpcpp/grpcpp.h>
@@ -10,7 +13,8 @@
 #include <memory>
 #include <string>
 
-namespace {
+namespace
+{
 
 void ReportThreads(const char *when)
 {
