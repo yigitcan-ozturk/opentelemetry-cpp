@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
 """TLS listener for the diagnostic atexit probe."""
 import socket
 import ssl
