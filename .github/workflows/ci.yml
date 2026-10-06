@@ -210,6 +210,109 @@ jobs:
     - name: install dependencies
       run: |
         sudo -E ./ci/install_thirdparty.sh --install-dir /usr/local --tags-file third_party_release
+    - name: probe gRPC/OpenSSL exit ordering
+      run: |
+        cat > /tmp/atexit_probe.cc <<'EOF'
+        #include <grpcpp/grpcpp.h>
+        #include <chrono>
+        #include <cstdio>
+        #include <cstdlib>
+        #include <cstring>
+        #include <dirent.h>
+        #include <memory>
+        #include <string>
+
+        namespace {
+        void ReportThreads(const char *when)
+        {
+          DIR *d = opendir("/proc/self/task");
+          if (d == nullptr) {
+            std::fprintf(stderr, "%s: cannot read /proc/self/task\n", when);
+            return;
+          }
+          int count = 0;
+          std::string names;
+          for (dirent *e = readdir(d); e != nullptr; e = readdir(d)) {
+            if (e->d_name[0] == '.') continue;
+            ++count;
+            char path[128];
+            std::snprintf(path, sizeof(path), "/proc/self/task/%s/comm", e->d_name);
+            if (FILE *f = std::fopen(path, "r")) {
+              char buf[64] = {0};
+              if (std::fgets(buf, sizeof(buf), f) != nullptr) {
+                buf[std::strcspn(buf, "\n")] = '\0';
+                names += " ";
+                names += buf;
+              }
+              std::fclose(f);
+            }
+          }
+          closedir(d);
+          std::fprintf(stderr, "%s: live threads = %d :%s\n", when, count, names.c_str());
+        }
+        void AtExitProbe() { ReportThreads("ATEXIT"); }
+        }
+
+        int main(int argc, char *argv[])
+        {
+          const int mode = (argc > 1) ? std::atoi(argv[1]) : 0;
+          std::atexit(AtExitProbe);
+          grpc::SslCredentialsOptions ssl_opts;
+          ssl_opts.pem_root_certs = "";
+          grpc::ChannelArguments args;
+          args.SetInt(GRPC_ARG_INITIAL_RECONNECT_BACKOFF_MS, 1);
+          args.SetInt(GRPC_ARG_MIN_RECONNECT_BACKOFF_MS, 1);
+          args.SetInt(GRPC_ARG_MAX_RECONNECT_BACKOFF_MS, 1);
+          auto *channel = new std::shared_ptr<grpc::Channel>(
+              grpc::CreateCustomChannel("127.0.0.1:14317", grpc::SslCredentials(ssl_opts), args));
+          (*channel)->GetState(true);
+          (*channel)->WaitForStateChange(
+              GRPC_CHANNEL_IDLE,
+              std::chrono::system_clock::now() + std::chrono::milliseconds(300));
+          ReportThreads("END_OF_MAIN");
+          std::fflush(nullptr);
+          if (mode == 1) std::_Exit(0);
+          return 0;
+        }
+        EOF
+        cat > /tmp/tls_server.py <<'EOF'
+        import socket, ssl, threading
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain("/tmp/probe-cert.pem", "/tmp/probe-key.pem")
+        srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", 14317))
+        srv.listen(512)
+        def handle(conn):
+            try:
+                s = ctx.wrap_socket(conn, server_side=True)
+                s.recv(1)
+                s.close()
+            except Exception:
+                pass
+            finally:
+                try: conn.close()
+                except Exception: pass
+        while True:
+            c, _ = srv.accept()
+            threading.Thread(target=handle, args=(c,), daemon=True).start()
+        EOF
+        pkg-config --modversion grpc++
+        openssl version -a
+        g++ -std=c++17 /tmp/atexit_probe.cc -o /tmp/atexit_probe $(pkg-config --cflags --libs grpc++)
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/probe-key.pem -out /tmp/probe-cert.pem -days 1 -subj /CN=localhost
+        python3 /tmp/tls_server.py >/tmp/tls-server.log 2>&1 &
+        server_pid=$!
+        trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+        sleep 1
+        echo "=== normal return ==="
+        /tmp/atexit_probe 0 2>&1 | tee /tmp/atexit-normal.log
+        echo "=== _Exit control ==="
+        /tmp/atexit_probe 1 2>&1 | tee /tmp/atexit-exit.log
+        if grep -q '^ATEXIT' /tmp/atexit-exit.log; then
+          echo "::error::_Exit control unexpectedly executed the atexit probe"
+          exit 1
+        fi
     - name: run cmake gcc (maintainer mode, async, Debug)
       env:
         BUILD_TYPE: Debug
