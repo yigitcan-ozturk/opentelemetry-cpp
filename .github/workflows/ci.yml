@@ -299,7 +299,9 @@ jobs:
         EOF
         pkg-config --modversion grpc++
         openssl version -a
-        g++ -std=c++17 /tmp/atexit_probe.cc -o /tmp/atexit_probe $(pkg-config --cflags --libs grpc++)
+        # The CI gRPC pkg-config metadata references re2.pc, which is absent here.
+        # Link directly against the installed gRPC C++ shared library for this probe.
+        g++ -std=c++17 /tmp/atexit_probe.cc -o /tmp/atexit_probe -I/usr/local/include -L/usr/local/lib -Wl,-rpath,/usr/local/lib -lgrpc++ -lgrpc -pthread
         openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/probe-key.pem -out /tmp/probe-cert.pem -days 1 -subj /CN=localhost
         python3 /tmp/tls_server.py >/tmp/tls-server.log 2>&1 &
         server_pid=$!
