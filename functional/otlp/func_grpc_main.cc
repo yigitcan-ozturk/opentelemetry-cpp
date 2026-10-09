@@ -202,18 +202,44 @@ static void cleanup()
   trace_sdk::Provider::SetTracerProvider(none);
 }
 
+
 static void instrumented_payload(const otlp::OtlpGrpcExporterOptions &opts)
 {
-  const bool diagnose = (opt_test_name == "cert-unreadable" && opt_secure && opt_mode == TestMode::kHttps);
-  if (diagnose) { std::fprintf(stderr, "[4541] before init\n"); std::fflush(stderr); }
+  const bool diagnose =
+      (opt_test_name == "cert-unreadable" && opt_secure && opt_mode == TestMode::kHttps);
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] before init\n");
+    std::fflush(stderr);
+  }
+
   g_test_result.reset();
   init(opts);
-  if (diagnose) { std::fprintf(stderr, "[4541] after init / before payload\n"); std::fflush(stderr); }
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after init / before payload\n");
+    std::fflush(stderr);
+  }
+
   payload();
-  if (diagnose) { std::fprintf(stderr, "[4541] after payload / before cleanup\n"); std::fflush(stderr); }
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after payload / before cleanup\n");
+    std::fflush(stderr);
+  }
+
   cleanup();
-  if (diagnose) { std::fprintf(stderr, "[4541] after cleanup\n"); std::fflush(stderr); }
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after cleanup\n");
+    std::fflush(stderr);
+  }
 }
+
 
 static void usage(std::FILE *out)
 {
