@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
 # Diagnostic-only runner for opentelemetry-cpp PR #4541.
 # Run from functional/otlp after generating certificates and starting the
 # HTTPS collector (the same setup as run_test_mode.sh).

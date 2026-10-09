@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
 # Reproduce the PR #4541 isolated TLS case using the existing functional-test
 # Docker collector configuration. Run from functional/otlp after building
 # func_otlp_grpc and running ../cert/generate_cert.sh.
