@@ -1,6 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
+#include <grpc/grpc.h>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -203,10 +204,39 @@ static void cleanup()
 
 static void instrumented_payload(const otlp::OtlpGrpcExporterOptions &opts)
 {
+  const bool diagnose =
+      (opt_test_name == "cert-unreadable" && opt_secure && opt_mode == TestMode::kHttps);
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] before init\n");
+    std::fflush(stderr);
+  }
+
   g_test_result.reset();
   init(opts);
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after init / before payload\n");
+    std::fflush(stderr);
+  }
+
   payload();
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after payload / before cleanup\n");
+    std::fflush(stderr);
+  }
+
   cleanup();
+
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after cleanup\n");
+    std::fflush(stderr);
+  }
 }
 
 static void usage(std::FILE *out)
@@ -434,7 +464,38 @@ int main(int argc, char *argv[])
   internal_log::GlobalLogHandler::SetLogHandler(log_handler);
   internal_log::GlobalLogHandler::SetLogLevel(internal_log::LogLevel::Debug);
 
+  // Keep one explicit gRPC runtime reference for the lifetime of the functional test.
+  // Channel construction owns additional references internally, but their final release may
+  // start asynchronous global teardown just as this short-lived process is returning. The TLS
+  // failure cases exercise gRPC background work heavily enough that this has intermittently
+  // raced process exit in CI. Holding our own reference lets us destroy every OpenTelemetry/gRPC
+  // object first, then wait for the final gRPC teardown to complete before leaving main().
+  const bool diagnose =
+      (opt_test_name == "cert-unreadable" && opt_secure && opt_mode == TestMode::kHttps);
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] before grpc_init\n");
+    std::fflush(stderr);
+  }
+  grpc_init();
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] before run_test_case\n");
+    std::fflush(stderr);
+  }
   rc = run_test_case(opt_test_name);
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] before grpc_shutdown_blocking\n");
+    std::fflush(stderr);
+  }
+  grpc_shutdown_blocking();
+  if (diagnose)
+  {
+    std::fprintf(stderr, "[4541] after grpc_shutdown_blocking\n");
+    std::fflush(stderr);
+  }
+
   return rc;
 }
 

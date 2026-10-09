@@ -48,8 +48,11 @@ do
   echo "====================================================================="
   echo "Running test ${T} on ${TEST_RUN} ${TEST_ENDPOINT} with server ${SERVER_MODE}"
   TEST_FULL_NAME="${T}-${TEST_RUN}-${SERVER_MODE}"
+  echo "PR4541_TRACE phase=BEGIN case=${TEST_FULL_NAME} pid=$ ts=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)" | tee -a sequence-4541.log
   "${TEST_BIN_DIR}/${TEST_EXECUTABLE}" --debug --mode ${SERVER_MODE} --cert-dir ${CERT_DIR} --endpoint ${TEST_ENDPOINT} ${T}
-  RC=$?
+  TRACE_RC=$?
+  echo "PR4541_TRACE phase=END case=${TEST_FULL_NAME} rc=${TRACE_RC} pid=$ ts=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)" | tee -a sequence-4541.log
+  RC=${TRACE_RC}
   if [ ${RC} -eq 0 ]; then
     echo "TEST ${TEST_FULL_NAME}: PASSED" | tee -a report.log
   else
